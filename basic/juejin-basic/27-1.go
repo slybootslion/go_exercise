@@ -12,9 +12,7 @@ var intChan = make(chan int)
 func main() {
 	syncWait1.Add(2)
 	go layEggs()
-
 	go eatEggs(intChan)
-
 	syncWait1.Wait()
 }
 

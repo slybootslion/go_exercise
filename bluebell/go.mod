@@ -1,4 +1,4 @@
-module gin-exercise
+module bluebell
 
 go 1.19
 
@@ -9,7 +9,7 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/spf13/viper v1.13.0
-	go.uber.org/zap v1.17.0
+	go.uber.org/zap v1.23.0
 )
 
 require (

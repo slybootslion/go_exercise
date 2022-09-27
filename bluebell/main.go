@@ -1,13 +1,13 @@
 package main
 
 import (
+	"bluebell/dao/mysql"
+	"bluebell/dao/redis"
+	"bluebell/logger"
+	"bluebell/routes"
+	"bluebell/settings"
 	"context"
 	"fmt"
-	"gin-exercise/dao/mysql"
-	"gin-exercise/dao/redis"
-	"gin-exercise/logger"
-	"gin-exercise/routes"
-	"gin-exercise/settings"
 	"net/http"
 	"os"
 	"os/signal"

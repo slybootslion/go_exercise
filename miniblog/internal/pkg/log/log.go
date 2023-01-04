@@ -41,7 +41,7 @@ func NewLogger(opts *Options) *zapLogger {
 	encoderConfig.MessageKey = "message"
 	encoderConfig.TimeKey = "timestamp"
 	encoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-		enc.AppendString(t.Format("2023-01-03 16:39:45.000"))
+		enc.AppendString(t.Format("2006-01-02 15:04:05.000"))
 	}
 	encoderConfig.EncodeDuration = func(d time.Duration, enc zapcore.PrimitiveArrayEncoder) {
 		enc.AppendFloat64(float64(d) / float64(time.Millisecond))

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"miniblog/internal/pkg/log"
+	"miniblog/internal/pkg/version/verflag"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -34,6 +35,7 @@ func NewMinBlogCommand() *cobra.Command {
 	cobra.OnInitialize(initConfig)
 	cmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "the path to the miniblog configuration file. Empty string for no configuration file.")
 	cmd.Flags().BoolP("toggle", "t", false, "help message for toggle")
+	verflag.AddFlags(cmd.PersistentFlags())
 	return cmd
 }
 

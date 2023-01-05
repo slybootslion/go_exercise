@@ -1,10 +1,9 @@
 package main
 
 import (
+	_ "go.uber.org/automaxprocs"
 	"miniblog/internal/miniblog"
 	"os"
-
-	_ "go.uber.org/automaxprocs"
 )
 
 func main() {

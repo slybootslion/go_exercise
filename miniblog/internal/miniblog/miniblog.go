@@ -20,6 +20,7 @@ func NewMinBlogCommand() *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			log.Init(logOptions())
+			verflag.PrintAndExitIfRequested()
 			defer log.Sync()
 			return run()
 		},

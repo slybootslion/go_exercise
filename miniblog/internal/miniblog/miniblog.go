@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/marmotedu/miniblog/internal/pkg/log"
+	mw "github.com/marmotedu/miniblog/internal/pkg/middleware"
 	"github.com/marmotedu/miniblog/pkg/version/verflag"
 )
 
@@ -81,12 +82,16 @@ func run() error {
 	gin.SetMode(viper.GetString("runmode"))
 	// 创建Gin引擎
 	g := gin.New()
+	// gin.Recovery() 中间件，用来捕获任何panic，并恢复
+	mws := []gin.HandlerFunc{gin.Recovery(), mw.RequestId()}
+	g.Use(mws...)
 	// 注册404
 	g.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"code": 10003, "message": "page not fount."})
 	})
 	// 注册 /healthz
 	g.GET("/healthz", func(c *gin.Context) {
+		log.C(c).Infow("healthz function called.")
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 	// 创建http server实例

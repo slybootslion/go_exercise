@@ -1,4 +1,4 @@
-module github.com/marmotedu/miniblog
+module github.com/slybootslion/miniblog-t
 
 go 1.19
 

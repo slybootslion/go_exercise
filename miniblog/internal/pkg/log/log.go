@@ -1,14 +1,9 @@
-// Copyright 2022 Innkeeper Belm(孔令飞) <nosbelm@qq.com>. All rights reserved.
-// Use of this source code is governed by a MIT style
-// license that can be found in the LICENSE file. The original repo for
-// this file is https://github.com/marmotedu/miniblog.
-
 // Package log is a log package used by miniblog project.
 package log
 
 import (
 	"context"
-	"github.com/marmotedu/miniblog/internal/pkg/known"
+	"github.com/slybootslion/miniblog-t/internal/pkg/known"
 	"sync"
 	"time"
 

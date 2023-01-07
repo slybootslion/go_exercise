@@ -1,9 +1,16 @@
 package miniblog
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"github.com/slybootslion/miniblog-t/internal/pkg/core"
+	"github.com/slybootslion/miniblog-t/internal/pkg/errno"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
@@ -78,16 +85,16 @@ func run() error {
 	// 创建Gin引擎
 	g := gin.New()
 	// gin.Recovery() 中间件，用来捕获任何panic，并恢复
-	mws := []gin.HandlerFunc{gin.Recovery(), mw.RequestId()}
+	mws := []gin.HandlerFunc{gin.Recovery(), mw.NoCache, mw.Cors, mw.Secure, mw.RequestId()}
 	g.Use(mws...)
 	// 注册404
 	g.NoRoute(func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"code": 10003, "message": "page not fount."})
+		core.WriteResponse(c, errno.ErrPageNotFond, nil)
 	})
 	// 注册 /healthz
 	g.GET("/healthz", func(c *gin.Context) {
 		log.C(c).Infow("healthz function called.")
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		core.WriteResponse(c, nil, map[string]string{"status": "ok"})
 	})
 	// 创建http server实例
 	httpsrv := &http.Server{Addr: viper.GetString("addr"), Handler: g}
@@ -96,9 +103,26 @@ func run() error {
 	log.Infow("start to listening th incoming requests on http address",
 		"addr",
 		viper.GetString("addr"))
-	if err := httpsrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalw(err.Error())
+	go func() {
+		if err := httpsrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalw(err.Error())
+		}
+	}()
+
+	// 等待终端信号优雅的关闭服务器（10秒超时）
+	quit := make(chan os.Signal)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Infow("Shutting down server ...")
+	// 创建ctx用于通知服务器goroutine，它有10秒时间完成当前正在处理的请求
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// 10秒内优雅关闭服务，超过10秒就超时退出
+	if err := httpsrv.Shutdown(ctx); err != nil {
+		log.Errorw("insecure server forced to shutdown", "err", err)
+		return err
 	}
+	log.Infow("Server exiting")
 
 	return nil
 }

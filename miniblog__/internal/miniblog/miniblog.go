@@ -1,18 +1,24 @@
-// Copyright 2022 Innkeeper Belm(孔令飞) <nosbelm@qq.com>. All rights reserved.
-// Use of this source code is governed by a MIT style
-// license that can be found in the LICENSE file. The original repo for
-// this file is https://github.com/marmotedu/miniblog.
-
 package miniblog
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"github.com/slybootslion/miniblog-t/internal/pkg/core"
+	"github.com/slybootslion/miniblog-t/internal/pkg/errno"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"miniblog/internal/pkg/log"
-	"net/http"
+
+	"github.com/slybootslion/miniblog-t/internal/pkg/log"
+	mw "github.com/slybootslion/miniblog-t/internal/pkg/middleware"
+	"github.com/slybootslion/miniblog-t/pkg/version/verflag"
 )
 
 var cfgFile string
@@ -34,9 +40,13 @@ Find more miniblog information at:
 		SilenceUsage: true,
 		// 指定调用 cmd.Execute() 时，执行的 Run 函数，函数执行失败会返回错误信息
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// 如果 `--version=true`，则打印版本并退出
+			verflag.PrintAndExitIfRequested()
+
 			// 初始化日志
 			log.Init(logOptions())
-			defer log.Sync() // Sync将缓存中的日志刷新到磁盘文件中
+			defer log.Sync() // Sync 将缓存中的日志刷新到磁盘文件中
+
 			return run()
 		},
 		// 这里设置命令运行时，不需要指定命令行参数
@@ -62,36 +72,57 @@ Find more miniblog information at:
 	// Cobra 也支持本地标志，本地标志只能在其所绑定的命令上使用
 	cmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
+	// 添加 --version 标志
+	verflag.AddFlags(cmd.PersistentFlags())
+
 	return cmd
 }
 
 // run 函数是实际的业务代码入口函数.
 func run() error {
-	// 设置 Gin 模式
+	// 设置Gin模式
 	gin.SetMode(viper.GetString("runmode"))
-
-	// 创建 Gin 引擎
+	// 创建Gin引擎
 	g := gin.New()
-
-	// 注册 404 Handler.
+	// gin.Recovery() 中间件，用来捕获任何panic，并恢复
+	mws := []gin.HandlerFunc{gin.Recovery(), mw.NoCache, mw.Cors, mw.Secure, mw.RequestId()}
+	g.Use(mws...)
+	// 注册404
 	g.NoRoute(func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"code": 10003, "message": "Page not found."})
+		core.WriteResponse(c, errno.ErrPageNotFond, nil)
 	})
-
-	// 注册 /healthz handler.
+	// 注册 /healthz
 	g.GET("/healthz", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		log.C(c).Infow("healthz function called.")
+		core.WriteResponse(c, nil, map[string]string{"status": "ok"})
 	})
-
-	// 创建 HTTP Server 实例
+	// 创建http server实例
 	httpsrv := &http.Server{Addr: viper.GetString("addr"), Handler: g}
+	// 运行http服务器
+	// 打印一条日志，用来提示HTTP服务已经启动，方便排障
+	log.Infow("start to listening th incoming requests on http address",
+		"addr",
+		viper.GetString("addr"))
+	go func() {
+		if err := httpsrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalw(err.Error())
+		}
+	}()
 
-	// 运行 HTTP 服务器
-	// 打印一条日志，用来提示 HTTP 服务已经起来，方便排障
-	log.Infow("==Start to listening the incoming requests on http address==", "addr", viper.GetString("addr"))
-	if err := httpsrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalw(err.Error())
+	// 等待终端信号优雅的关闭服务器（10秒超时）
+	quit := make(chan os.Signal)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Infow("Shutting down server ...")
+	// 创建ctx用于通知服务器goroutine，它有10秒时间完成当前正在处理的请求
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// 10秒内优雅关闭服务，超过10秒就超时退出
+	if err := httpsrv.Shutdown(ctx); err != nil {
+		log.Errorw("insecure server forced to shutdown", "err", err)
+		return err
 	}
+	log.Infow("Server exiting")
 
 	return nil
 }

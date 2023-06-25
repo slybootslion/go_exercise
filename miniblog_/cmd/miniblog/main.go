@@ -1,16 +1,17 @@
 package main
 
 import (
-	_ "go.uber.org/automaxprocs"
-	"miniblog/internal/miniblog"
 	"os"
+
+	_ "go.uber.org/automaxprocs"
+
+	"github.com/slybootslion/miniblog-t/internal/miniblog"
 )
 
+// Go 程序的默认入口函数(主函数).
 func main() {
 	command := miniblog.NewMiniBlogCommand()
 	if err := command.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
-
-// https://juejin.cn/book/7176608782871429175/section/7179875824206610489
